@@ -1,3 +1,5 @@
+[![Python application](https://github.com/long-910/merge_pdf/actions/workflows/python-app.yml/badge.svg)](https://github.com/long-910/merge_pdf/actions/workflows/python-app.yml)
+
 # PDF ファイル結合ツール
 
 このツールは、複数の PDF ファイルを簡単に結合するための Python スクリプトです。ワイルドカードパターンを使用して、複数の PDF ファイルを一度に結合することができます。
