@@ -1,97 +1,94 @@
+#!/usr/bin/env python3
+"""
+PDFファイルを結合するスクリプト
+"""
+
 import os
 import glob
-import argparse
-import sys
-from PyPDF2 import PdfMerger
-from PyPDF2.errors import PdfReadError
+from pathlib import Path
+from typing import List, Union
+from pypdf import PdfReader, PdfWriter
 from tqdm import tqdm
 
 
 class PdfMergeError(Exception):
-    """PDF結合処理中のエラーを表す例外クラス"""
+    """PDFマージ処理中のエラーを表す例外クラス"""
     pass
 
 
-def merge_pdfs(pdf_patterns, output_path="output.pdf"):
-    merger = PdfMerger()
-    pdf_files = []
-    total_files = 0
-    processed_files = 0
+def merge_pdfs(
+    input_files: List[str],
+    output_file: str = "merged.pdf",
+    progress: bool = True
+) -> None:
+    """
+    PDFファイルを結合する
 
-    # 各パターンに対してglobを実行し、ファイルリストを作成
-    for pattern in pdf_patterns:
-        matched_files = sorted(glob.glob(pattern))
-        if not matched_files:
-            print(
-                f"警告: パターン '{pattern}' に一致するPDFファイルが見つかりませんでした。"
-            )
-        pdf_files.extend(matched_files)
+    Args:
+        input_files: 結合するPDFファイルのパスのリスト
+        output_file: 出力ファイルのパス
+        progress: 進捗表示の有効/無効
 
-    total_files = len(pdf_files)
-    if not pdf_files:
-        print("エラー: 処理可能なPDFファイルが見つかりませんでした。")
-        raise PdfMergeError("処理可能なPDFファイルが見つかりませんでした。")
+    Raises:
+        PdfMergeError: PDFの結合に失敗した場合
+    """
+    # 出力ディレクトリが存在しない場合は作成
+    output_path = Path(output_file)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    print(f"合計 {total_files} 個のPDFファイルを処理します。")
+    # 入力ファイルの展開
+    expanded_files = []
+    for file_pattern in input_files:
+        expanded_files.extend(glob.glob(file_pattern))
 
-    # PDFファイルを結合
-    with tqdm(total=total_files, desc="PDFファイル結合中", unit="ファイル") as pbar:
-        for pdf in pdf_files:
-            if os.path.exists(pdf):
-                try:
-                    merger.append(pdf)
-                    processed_files += 1
-                    pbar.update(1)
-                except PdfReadError:
-                    print(
-                        f"エラー: {pdf} は有効なPDFファイルではありません。スキップします。"
-                    )
-                except Exception as e:
-                    print(f"エラー: {pdf} の処理中に問題が発生しました: {str(e)}")
-            else:
-                print(f"警告: {pdf} が見つかりませんでした。スキップします。")
+    if not expanded_files:
+        raise PdfMergeError("入力ファイルが見つかりません")
 
-    if processed_files == 0:
-        print("エラー: 処理可能なPDFファイルがありませんでした。")
-        raise PdfMergeError("処理可能なPDFファイルがありませんでした。")
+    # PDFの結合
+    merger = PdfWriter()
+    file_iterator = tqdm(expanded_files, desc="PDFファイルを結合中") if progress else expanded_files
 
     try:
-        merger.write(output_path)
-        merger.close()
-        print(f"\n結合完了: {output_path}")
-        print(f"処理したファイル数: {processed_files}/{total_files}")
+        for file_path in file_iterator:
+            if not os.path.exists(file_path):
+                raise PdfMergeError(f"ファイルが見つかりません: {file_path}")
+
+            try:
+                reader = PdfReader(file_path)
+                merger.append(reader)
+            except Exception as e:
+                raise PdfMergeError(f"PDFファイルの読み込みに失敗しました: {file_path} - {str(e)}")
+
+        # 結合したPDFを保存
+        with open(output_file, "wb") as output:
+            merger.write(output)
+
     except Exception as e:
-        print(f"エラー: 出力ファイルの作成中に問題が発生しました: {str(e)}")
-        raise PdfMergeError(f"出力ファイルの作成中に問題が発生しました: {str(e)}")
+        # エラーが発生した場合は出力ファイルを削除
+        if os.path.exists(output_file):
+            os.remove(output_file)
+        raise PdfMergeError(f"PDFの結合に失敗しました: {str(e)}")
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="複数のPDFファイルを結合します。",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""
-使用例:
-  python py_merge_pdf.py "document_*.pdf"
-  python py_merge_pdf.py "chapter_*.pdf" "appendix_*.pdf" -o combined_document.pdf
-        """,
-    )
-    parser.add_argument(
-        "patterns", nargs="+", help="結合するPDFファイルのパターン（例：document_202*.pdf）"
-    )
-    parser.add_argument(
-        "-o",
-        "--output",
-        default="output.pdf",
-        help="出力ファイル名（デフォルト: output.pdf）",
-    )
+    """コマンドラインから実行された場合のエントリーポイント"""
+    import argparse
+
+    parser = argparse.ArgumentParser(description="PDFファイルを結合する")
+    parser.add_argument("input_files", nargs="+", help="結合するPDFファイルのパス")
+    parser.add_argument("-o", "--output", default="merged.pdf", help="出力ファイルのパス")
+    parser.add_argument("--no-progress", action="store_true", help="進捗表示を無効にする")
 
     args = parser.parse_args()
+
     try:
-        merge_pdfs(args.patterns, args.output)
+        merge_pdfs(args.input_files, args.output, not args.no_progress)
+        print(f"PDFファイルを結合しました: {args.output}")
     except PdfMergeError as e:
-        print(f"エラー: {str(e)}")
+        print(f"エラー: {str(e)}", file=sys.stderr)
         sys.exit(1)
 
 
 if __name__ == "__main__":
+    import sys
     main()
