@@ -74,7 +74,7 @@ def main():
         """,
     )
     parser.add_argument(
-        "patterns", nargs="+", help="結合するPDFファイルのパターン（例：給与202*.pdf）"
+        "patterns", nargs="+", help="結合するPDFファイルのパターン（例：document_202*.pdf）"
     )
     parser.add_argument(
         "-o",
