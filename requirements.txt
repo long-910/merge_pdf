@@ -1,3 +1,4 @@
 PyPDF2>=3.0.0
+tqdm>=4.65.0
 pytest
 pytest-cov 

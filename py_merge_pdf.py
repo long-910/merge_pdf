@@ -4,6 +4,7 @@ import argparse
 import sys
 from PyPDF2 import PdfMerger
 from PyPDF2.errors import PdfReadError
+from tqdm import tqdm
 
 
 class PdfMergeError(Exception):
@@ -34,20 +35,21 @@ def merge_pdfs(pdf_patterns, output_path="output.pdf"):
     print(f"合計 {total_files} 個のPDFファイルを処理します。")
 
     # PDFファイルを結合
-    for pdf in pdf_files:
-        if os.path.exists(pdf):
-            try:
-                print(f"処理中 ({processed_files + 1}/{total_files}): {pdf}")
-                merger.append(pdf)
-                processed_files += 1
-            except PdfReadError:
-                print(
-                    f"エラー: {pdf} は有効なPDFファイルではありません。スキップします。"
-                )
-            except Exception as e:
-                print(f"エラー: {pdf} の処理中に問題が発生しました: {str(e)}")
-        else:
-            print(f"警告: {pdf} が見つかりませんでした。スキップします。")
+    with tqdm(total=total_files, desc="PDFファイル結合中", unit="ファイル") as pbar:
+        for pdf in pdf_files:
+            if os.path.exists(pdf):
+                try:
+                    merger.append(pdf)
+                    processed_files += 1
+                    pbar.update(1)
+                except PdfReadError:
+                    print(
+                        f"エラー: {pdf} は有効なPDFファイルではありません。スキップします。"
+                    )
+                except Exception as e:
+                    print(f"エラー: {pdf} の処理中に問題が発生しました: {str(e)}")
+            else:
+                print(f"警告: {pdf} が見つかりませんでした。スキップします。")
 
     if processed_files == 0:
         print("エラー: 処理可能なPDFファイルがありませんでした。")

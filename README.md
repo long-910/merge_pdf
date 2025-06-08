@@ -157,7 +157,7 @@ MIT ライセンス
 
 ## 作者
 
-[long-910]
+[long-910](https://github.com/long-910)
 
 ## 貢献
 
